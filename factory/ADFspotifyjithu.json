@@ -1,0 +1,9 @@
+{
+	"name": "ADFspotifyjithu",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "bdb255c2-1b10-4247-8fce-0d0c1ed8df5e",
+		"tenantId": "4cdbeea6-9f8e-4602-b789-0f044d623df5"
+	}
+}
