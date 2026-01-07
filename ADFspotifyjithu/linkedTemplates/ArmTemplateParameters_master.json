@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "ADFspotifyjithu"
+		},
+		"AzureDataLake_accountKey": {
+			"value": ""
+		},
+		"SpotifyDBLS_password": {
+			"value": ""
+		},
+		"AzureDataLake_properties_typeProperties_url": {
+			"value": "https://spotifystoragejithu.dfs.core.windows.net/"
+		},
+		"SpotifyDBLS_properties_typeProperties_server": {
+			"value": "spotifydbserverjithu.database.windows.net"
+		},
+		"SpotifyDBLS_properties_typeProperties_database": {
+			"value": "spotifyDB"
+		},
+		"SpotifyDBLS_properties_typeProperties_userName": {
+			"value": "jithender154"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}
