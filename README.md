@@ -1,151 +1,181 @@
-# spotifyAzureProject
+# 🎵 Spotify Azure Data Pipeline
 
-Overview
+> End-to-end cloud data engineering pipeline — incremental ingestion, structured transformation, and analytics-ready modeling using Azure & Databricks.
 
-This project implements an end-to-end Azure-based data engineering pipeline using Azure Data Factory, Azure Data Lake Gen2, and Databricks.
-The goal is to ingest Spotify data incrementally, apply structured transformations, and build analytics-ready dimension and fact tables using Delta Live Tables (DLT) with Slowly Changing Dimension (SCD) Type 2 handling.
+---
 
-🏗️ Architecture
+## 📐 Architecture Overview
 
-Ingestion: Azure Data Factory (ADF)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      DATA FLOW                                  │
+│                                                                 │
+│  Spotify API                                                    │
+│      │                                                          │
+│      ▼                                                          │
+│  ┌─────────────────────┐                                        │
+│  │  Azure Data Factory │  ← Incremental + Backfill CDC Logic    │
+│  └─────────┬───────────┘                                        │
+│            │                                                    │
+│            ▼                                                    │
+│  ┌───────────────────────────────────────────┐                  │
+│  │        Azure Data Lake Gen2               │                  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐  │                  │
+│  │  │  BRONZE  │ │  SILVER  │ │   GOLD   │  │                  │
+│  │  │   Raw    │→│  Clean   │→│Analytics │  │                  │
+│  │  └──────────┘ └──────────┘ └──────────┘  │                  │
+│  └───────────────────────────────────────────┘                  │
+│                        │                                        │
+│                        ▼                                        │
+│  ┌─────────────────────────────────────┐                        │
+│  │         Azure Databricks            │                        │
+│  │   PySpark Transformations + DLT     │                        │
+│  │   SCD Type 2 Dimension Modeling     │                        │
+│  └─────────────────────────────────────┘                        │
+│                        │                                        │
+│                        ▼                                        │
+│              GitHub (Version Control)                           │
+│          ADF Pipelines + Databricks Asset Bundle                │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-Storage: Azure Data Lake Gen2 (Bronze / Silver / Gold)
+---
 
-Processing: Azure Databricks (PySpark)
+## 🛠️ Tech Stack
 
-Gold Layer Modeling: Delta Live Tables (DLT)
+| Component | Technology |
+|---|---|
+| Orchestration | Azure Data Factory |
+| Storage | Azure Data Lake Gen2 |
+| Processing | Azure Databricks + PySpark |
+| Table Format | Delta Lake |
+| Gold Modeling | Delta Live Tables (DLT) |
+| Version Control | GitHub |
 
-Version Control: GitHub (ADF + Databricks Asset Bundle)
+---
 
-🔄 Data Ingestion – Azure Data Factory
-Incremental & Backfill Logic
+## 🔄 Data Ingestion — Azure Data Factory
 
-The ADF pipeline is fully parameterized and supports both incremental loads and historical backfilling.
+The ADF pipeline is **fully parameterized** and supports both incremental loads and historical backfills.
 
-Key parameters used:
+### Key Parameters
 
-schema
+| Parameter | Purpose |
+|---|---|
+| `schema` | Target schema name |
+| `file` | Source file identifier |
+| `cdc` | Change Data Capture timestamp column |
+| `back_date` | Historical backfill start date |
 
-file
+### Pipeline Flow
 
-cdc
+```
+Lookup (last CDC timestamp)
+        │
+        ▼
+Set Variable (current execution timestamp)
+        │
+        ▼
+Copy Activity (load only new/updated records via CDC)
+        │
+        ▼
+If Condition ──► New data found → Ingest + Update CDC metadata
+        │
+        └──► No new data → Exit safely (no reprocessing)
+```
 
-back_date
+> ✅ This design is **idempotent** — safe to re-run without duplicating data.
 
-Flow Logic
+---
 
-Lookup activity reads the last processed CDC timestamp from metadata.
+## 🥈 Silver Layer — Transformations
 
-Set Variable captures the current execution timestamp.
+Raw ingested data is **cleaned and standardized** in the Silver layer using PySpark.
 
-Copy Activity loads only new or updated records using the CDC column.
+**Transformations applied:**
+- Schema normalization and column renaming
+- Data type casting
+- Deduplication using business keys
+- Null and invalid record handling
+- Consistent timestamp enforcement
 
-If Condition:
+The Silver layer is the single reliable source of truth for downstream modeling.
 
-If new data exists → data is ingested and CDC metadata is updated.
+---
 
-If no new data → pipeline exits safely without reprocessing.
+## 🥇 Gold Layer — Delta Live Tables (DLT)
 
-This approach avoids full reloads and ensures idempotent, efficient ingestion.
+Analytics-ready **dimension and fact tables** are built declaratively using Delta Live Tables.
 
-🥈 Silver Layer – Transformations (Databricks)
+### Features
+- Streaming tables for continuous processing
+- Built-in data quality enforcement via expectations
+- Automatic dependency resolution between tables
 
-In the Silver layer, raw ingested data is cleaned and standardized using PySpark.
+### SCD Type 2 Implementation
 
-Key transformations:
+Historical changes are tracked using DLT's CDC API for all dimension tables.
 
-Schema normalization and column renaming
+| Dimension | Description |
+|---|---|
+| `dimuser` | User attribute history |
+| `dimtrack` | Track metadata changes |
+| `dimdate` | Calendar/reference dimension |
 
-Data type casting
+**SCD Type 2 Mechanics:**
 
-Deduplication using business keys
+```
+Sequencing column : updated_at
+Tracks            : effective_from / effective_to
+Behavior          : Full change history preserved for analytics
+```
 
-Handling nulls and invalid records
+---
 
-Enforcing consistent timestamps
+## 📁 Project Structure
 
-The Silver layer serves as a clean, reliable source for downstream analytics and modeling.
-
-🥇 Gold Layer – Delta Live Tables (DLT)
-
-The Gold layer is built using Declarative Delta Live Tables, focusing on analytics-ready dimension and fact tables.
-
-Key Features
-
-Streaming tables for continuous processing
-
-Built-in data quality enforcement
-
-Automatic dependency management
-
-SCD Type 2 Implementation
-
-For dimension tables (e.g. dimuser, dimtrack, dimdate), SCD Type 2 is implemented using DLT CDC APIs.
-
-Highlights:
-
-Tracks historical changes
-
-Maintains effective_from and effective_to
-
-Uses updated_at as the sequencing column
-
-Preserves full change history for analytics
-
-Example use cases:
-
-User attribute changes
-
-Track metadata updates
-
-Slowly changing reference data
-
-📁 Project Structure
+```
 spotifyAzureProject/
 │
-├── dataset/                 # ADF datasets
-├── linkedService/           # ADF linked services
-├── pipeline/                # ADF pipelines (incremental + backfill)
+├── dataset/                  # ADF dataset definitions
+├── linkedService/            # ADF linked service configs
+├── pipeline/                 # ADF pipelines (incremental + backfill)
 │
-├── spotify_dab/             # Databricks Asset Bundle
-│   ├── transformations/     # Silver layer PySpark logic
-│   ├── explorations/        # Exploration notebooks
-│   ├── utilities/           # Shared utilities
-│   └── databricks.yml
+├── spotify_dab/              # Databricks Asset Bundle
+│   ├── transformations/      # Silver layer PySpark logic
+│   ├── explorations/         # Exploratory notebooks
+│   ├── utilities/            # Shared helper utilities
+│   └── databricks.yml        # Bundle configuration
 │
 ├── publish_config.json
 └── README.md
+```
 
-🚀 Key Learnings & Outcomes
+---
 
-Designed metadata-driven incremental ingestion
+## 🚀 Key Learnings & Outcomes
 
-Implemented parameterized ADF pipelines with backfill support
+- ✅ Metadata-driven incremental ingestion with CDC
+- ✅ Parameterized ADF pipelines with backfill support
+- ✅ Clean Silver layer transformation framework
+- ✅ Declarative Gold layer modeling with DLT
+- ✅ SCD Type 2 for full historical dimension tracking
+- ✅ Git-based version control for ADF + Databricks
 
-Built clean Silver layer transformations
+---
 
-Used Delta Live Tables for scalable Gold layer modeling
+## 📸 Pipeline Screenshots
 
-Implemented SCD Type 2 for historical tracking
+**ADF Pipeline — Full View**
 
-Enabled Git-based version control for both ADF and Databricks
+![ADF Pipeline Full View](https://github.com/user-attachments/assets/630e34c8-6ce9-4fcc-94f6-ea4e330a88d0)
 
-🛠️ Tech Stack
+**ADF Pipeline — Detail View**
 
-Azure Data Factory
+![ADF Pipeline Detail View](https://github.com/user-attachments/assets/db2b92fe-9265-4e0b-85f4-ad1b203b1691)
 
-Azure Data Lake Gen2
+---
 
-Azure Databricks
-
-PySpark
-
-Delta Lake
-
-Delta Live Tables (DLT)
-
-GitHub
-
-<img width="1440" height="900" alt="Screenshot 2026-01-22 at 2 51 10 PM" src="https://github.com/user-attachments/assets/630e34c8-6ce9-4fcc-94f6-ea4e330a88d0" />
-<img width="1440" height="900" alt="Screenshot 2026-01-22 at 2 08 42 PM" src="https://github.com/user-attachments/assets/db2b92fe-9265-4e0b-85f4-ad1b203b1691" />
-
+<div align="center">
+  <sub>Built with Azure Data Factory · Databricks · Delta Live Tables</sub>
+</div>
