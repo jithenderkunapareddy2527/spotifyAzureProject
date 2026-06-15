@@ -2,7 +2,7 @@
 
 > End-to-end cloud data engineering pipeline — incremental ingestion, structured transformation, and analytics-ready modeling using Azure & Databricks.
 
----
+----
 
 ## 📐 Architecture Overview
 
